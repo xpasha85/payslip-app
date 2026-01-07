@@ -9,8 +9,7 @@ services:
     ports:
       - "8090:8000"
     restart: unless-stopped
-    env_file:
-      - .env
+    
     environment:
       ADMIN_USER: ${ADMIN_USER}
       ADMIN_PASS: ${ADMIN_PASS}
