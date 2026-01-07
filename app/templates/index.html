@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>Генератор расчетных ведомостей</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=997">
+    <style>
+        /* ... ТВОИ СТИЛИ БЕЗ ИЗМЕНЕНИЙ ... */
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text-main: #111827;
+            --text-sec: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --success-bg: #d1fae5;
+            --error-bg: #fee2e2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* HEADER */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            color: var(--text-sec);
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* CARD STYLE */
+        .card {
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        /* DROP ZONE */
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #f8fafc;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+        .drop-icon {
+            font-size: 40px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            display: block;
+        }
+        .drop-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .drop-sub {
+            font-size: 13px;
+            color: var(--text-sec);
+            margin-top: 4px;
+        }
+
+        /* BUTTON */
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+
+        /* TABLE */
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; color: var(--text-sec); font-weight: 600; padding: 12px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 12px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+        
+        .name-cell { font-weight: 600; color: var(--text-main); display: block;}
+        .period-cell { font-size: 11px; color: var(--text-sec); }
+        .num { font-family: "JetBrains Mono", monospace; font-weight: 500; }
+        .match-ok { color: var(--success); font-weight: 700; }
+        .match-err { color: var(--error); font-weight: 700; }
+
+        /* BADGES */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-ok { background: var(--success-bg); color: #065f46; }
+        .badge-err { background: var(--error-bg); color: #991b1b; }
+
+        .hidden { display: none; }
+        .error-log {
+            background: #1e293b; color: #f87171; padding: 16px; border-radius: 8px;
+            font-family: monospace; font-size: 12px; white-space: pre-wrap; overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Генератор расчетных ведомостей</h1>
+        <p>Excel / CSV в красивые расчетные листы</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="drop-zone" id="dropZone">
+                <span class="drop-icon">📄</span>
+                <div class="drop-text">Выберите файлы или перетащите их сюда</div>
+                <div class="drop-sub">Поддерживается массовая загрузка (.xlsx, .csv)</div>
+                <input type="file" id="fileInput" multiple style="display: none" accept=".csv, .xlsx, .xls">
+            </div>
+
+            <div id="errorBlock" class="hidden" style="margin-top: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--error);">Ошибка обработки</h4>
+                <div class="error-log" id="errorContent"></div>
+            </div>
+        </div>
+
+        <div id="previewBlock" class="card hidden">
+            <div class="result-header">
+                <h3 style="margin:0;">Сводная таблица</h3>
+                <button class="btn" onclick="generatePrint()">🖨️ Печать всех</button>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th width="25%">Сотрудник</th>
+                        <th>ЗП (Часы)</th>
+                        <th>Бонусы</th>
+                        <th>Удержано</th>
+                        <th>Авансы</th>
+                        <th>Итог</th>
+                        <th>В файле</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let globalData = [];
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const errorBlock = document.getElementById('errorBlock');
+        const previewBlock = document.getElementById('previewBlock');
+        const tableBody = document.getElementById('tableBody');
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => uploadFiles(e.target.files);
+        
+        dropZone.ondragover = (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.add('dragover');
+        };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => { 
+            e.preventDefault(); 
+            dropZone.classList.remove('dragover');
+            uploadFiles(e.dataTransfer.files); 
+        };
+
+        async function uploadFiles(files) {
+            if(!files || files.length === 0) return;
+            
+            errorBlock.classList.add('hidden');
+            previewBlock.classList.add('hidden');
+            dropZone.querySelector('.drop-text').innerText = `Обработка ${files.length} файлов...`;
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                
+                // Проверка на 401 (если сессия истекла или нет прав)
+                if (res.status === 401) {
+                    location.reload(); // Перезагрузка вызовет окно логина
+                    return;
+                }
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    showError(err.traceback || err.error);
+                    return;
+                }
+                globalData = await res.json();
+                renderTable();
+                previewBlock.classList.remove('hidden');
+                dropZone.querySelector('.drop-text').innerText = `Готово! Обработано файлов: ${files.length}`;
+            } catch (e) {
+                showError("Ошибка соединения: " + e);
+            }
+        }
+
+        function showError(text) {
+            errorBlock.classList.remove('hidden');
+            document.getElementById('errorContent').innerText = text;
+            dropZone.querySelector('.drop-text').innerText = "Произошла ошибка";
+        }
+
+        function fmt(n) { return n.toFixed(2); }
+
+        function renderTable() {
+            tableBody.innerHTML = '';
+            globalData.forEach((emp) => {
+                const shiftPay = emp.shifts.reduce((a, s) => a + s.earnings, 0);
+                const bonusPay = emp.bonuses.reduce((a, b) => a + b.amount, 0);
+                const ded = emp.deductions.reduce((a,x)=>a+x.amount,0);
+                const adv = emp.advances.reduce((a,x)=>a+x.amount,0);
+                const calcTotal = shiftPay + bonusPay + ded + adv;
+                
+                const diff = Math.abs(calcTotal - emp.total_payout);
+                const isMatch = diff < 2.0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <span class="name-cell">${emp.name}</span>
+                        <span class="period-cell">${emp.period}</span>
+                    </td>
+                    <td class="num">${fmt(shiftPay)}</td>
+                    <td class="num" style="color:#666">${fmt(bonusPay)}</td>
+                    <td class="num" style="color:#ef4444">${fmt(ded)}</td>
+                    <td class="num" style="color:#ef4444">${fmt(adv)}</td>
+                    <td class="num" style="font-weight:bold">${fmt(calcTotal)}</td>
+                    <td class="num" style="color:#9ca3af">${fmt(emp.total_payout)}</td>
+                    <td>
+                        <span class="badge ${isMatch ? 'badge-ok' : 'badge-err'}">
+                            ${isMatch ? 'OK' : 'ERR'}
+                        </span>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        async function generatePrint() {
+            const res = await fetch('/print', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(globalData) 
+            });
+            if (res.status === 401) { location.reload(); return; }
+            const win = window.open('', '_blank'); 
+            win.document.write(await res.text());
+        }
+    </script>
+</body>
+</html>

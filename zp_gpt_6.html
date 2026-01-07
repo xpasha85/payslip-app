@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Расчетный лист - Вариант 2 (комментированный)</title>
+
+    <style>
+        /* =========================================================
+           ОБЩИЕ НАСТРОЙКИ СТРАНИЦЫ (А4, базовые шрифты и фон)
+           ========================================================= */
+
+        /* Пытаемся явно указать формат А4 при печати */
+        @page {
+            size: A4;
+            margin: 0; /* Можно увеличить до 5–10mm, если принтер режет по краям */
+        }
+
+        /* ВЕСЬ ЭКРАННЫЙ ФОН (серый вокруг листа) */
+        body {
+            /* Базовый шрифт страницы (Inter/Roboto, потом системные) */
+            font-family: "Inter", "Roboto", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #dcdcdc; /* Серый фон вокруг листа в браузере */
+            margin: 0;
+            padding: 24px;
+            color: #111;
+        }
+
+        /* САМ ЛИСТ А4 */
+        .sheet {
+            background: #fff;
+            width: 210mm;          /* Ширина А4 */
+            min-height: 297mm;     /* Высота А4 */
+            margin: 0 auto;
+            padding: 18mm 18mm 16mm;  /* Поля внутри листа */
+            box-sizing: border-box;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+            border-radius: 4px;
+            position: relative; /* нужно для позиционирования меток сгиба */
+        }
+
+        /* =========================================================
+           ШАПКА: ФИО + ПЕРИОД
+           ========================================================= */
+
+        .header {
+            border-bottom: 2px solid #111;
+            padding-bottom: 10px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between; /* ФИО слева, период справа */
+            align-items: flex-end;
+        }
+
+        .header h1 {
+            margin: 0;
+            /* >>> РАЗМЕР ФИО <<<
+               Здесь меняешь размер, если хочешь крупнее/мельче */
+            font-size: 20px; /* было 22, сделал чуть меньше */
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 800;
+        }
+
+        .header .period {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            text-align: right; /* >>> ВЫРАВНИВАНИЕ ПЕРИОДА ПО ПРАВОМУ КРАЮ <<< */
+        }
+
+        /* =========================================================
+           БЛОК ИТОГОВ (Начислено / Удержано / Авансы / К выплате)
+           ========================================================= */
+
+        .calc-block {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            background: #f3f4f6;             /* Светло-серый фон карточки */
+            border-radius: 8px;
+            border: 1px solid #d0d2d7;
+            padding: 14px 18px;
+            margin-bottom: 30px;
+        }
+
+        .calc-item {
+            /* Все внутри (подзаголовки + сумма) центрируется по горизонтали */
+            text-align: center; /* <<< по центру относительно сумм */
+            min-width: 90px;
+        }
+
+        /* ПОДПИСИ "Начислено / Удержано / Авансы / К ВЫПЛАТЕ" */
+        .calc-item .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        /* ЦИФРЫ (суммы) в блоке итогов */
+        .calc-item .value {
+            font-size: 16px; /* было 17, чуть уменьшил */
+            font-weight: 700;
+            color: #111827;
+            font-family: "JetBrains Mono", "Consolas", monospace;
+        }
+
+        /* СУММА "К ВЫПЛАТЕ" — ОСНОВНЫЙ АКЦЕНТ */
+        .val-total {
+            /* >>> РАЗМЕР "К ВЫПЛАТЕ" <<<
+               Здесь можно сделать крупнее/мельче итоговую сумму */
+            font-size: 20px; /* было 24, уменьшил чтобы не кричало */
+            font-weight: 900;
+            border-bottom: 3px solid #111827;
+            padding-bottom: 2px;
+            line-height: 1.15;
+        }
+
+        /* =========================================================
+           ОСНОВНАЯ СЕТКА (лево: смены, право: авансы/удержания)
+           ========================================================= */
+
+        .layout-grid {
+            display: flex;
+            gap: 32px;
+            align-items: flex-start;
+        }
+
+        .left-panel {
+            flex: 6;  /* левая колонка шире */
+        }
+
+        .right-panel {
+            flex: 4;  /* правая колонка уже */
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ЗАГОЛОВКИ БЛОКОВ ТАБЛИЦ (1. Детализация смен, 2. История авансов, 3. Удержания) */
+        h3 {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin: 0;
+            background: #e5e7eb;
+            padding: 8px 10px;
+            border-radius: 4px 4px 0 0;
+            border-bottom: 2px solid #111827;
+            letter-spacing: 0.08em;
+        }
+
+        /* =========================================================
+           ТАБЛИЦЫ
+           ========================================================= */
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            line-height: 1.35; /* плотность строк внутри таблиц */
+        }
+
+        thead tr {
+            background: #f9fafb;
+        }
+
+        th {
+            text-align: left;
+            border-bottom: 1px solid #d1d5db;
+            padding: 8px 10px;
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #6b7280;
+            letter-spacing: 0.08em;
+        }
+
+        td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 6px 10px;
+            vertical-align: top;
+        }
+
+        /* Зебра для удобства чтения строк */
+        tr:nth-child(even) td {
+            background: #f9fafb;
+        }
+
+        /* ЧИСЛА "СУММА" — ПРАВЫЙ КРАЙ + МОНОШИРИННЫЙ ШРИФТ */
+        .col-money {
+            text-align: right;
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* СТРОКИ ИТОГОВ ВНУТРИ ТАБЛИЦ (ВСЕГО, Итого и т.п.) */
+        .row-total td {
+            border-top: 2px solid #111827;
+            border-bottom: none;
+            font-weight: 800;
+            background: #fff !important;
+            padding-top: 10px;
+        }
+
+        /* =========================================================
+           МЕТКИ ДЛЯ СГИБА ЛИСТА НА 3 ЧАСТИ
+           =========================================================
+           Если не нужны — САМЫЙ ПРОСТОЙ СПОСОБ:
+           1) Закомментировать блок .fold-mark + .fold-mark--top/.fold-mark--middle
+           2) Удалить/закомментировать <div class="fold-mark ..."> в HTML
+        */
+
+        .fold-mark {
+            position: absolute;
+            width: 6mm;        /* длина засечки */
+            border-top: 0.3mm solid #999;
+            left: 50%;         /* по центру листа по ширине */
+            transform: translateX(-50%);
+            opacity: 0.7;
+            /* очень мелкий шрифт, чтобы, если что, можно было даже подписать */
+            font-size: 6px;
+            text-align: center;
+        }
+
+        /* Засечка на 1/3 высоты листа */
+        .fold-mark--top {
+            top: 33.33%;
+        }
+
+        /* Засечка на 2/3 высоты листа */
+        .fold-mark--middle {
+            top: 66.66%;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .sheet {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                padding: 12mm;
+                border-radius: 0;
+            }
+
+            .calc-block,
+            h3,
+            thead tr,
+            tr:nth-child(even) td {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sheet">
+
+    <!--
+        МЕТКИ СГИБА:
+        Если не нужны – можно полностью удалить эти два <div> или закомментировать.
+        Они ставят небольшие засечки по центру листа на 1/3 и 2/3 высоты.
+    -->
+    <div class="fold-mark fold-mark--top"><!-- 1/3 --></div>
+    <div class="fold-mark fold-mark--middle"><!-- 2/3 --></div>
+
+    <!-- ===================== ШАПКА: ФИО + ПЕРИОД ===================== -->
+    <div class="header">
+        <div>
+            <!-- ФИО СОТРУДНИКА (размер меняется в .header h1 -> font-size) -->
+            <h1>Вахменина Марина Сергеевна</h1>
+        </div>
+        <!-- ПЕРИОД РАСЧЕТА (выравнивание по правому краю в .header .period) -->
+        <div class="period">
+            Период: 16.12.2025 — 31.12.2025
+        </div>
+    </div>
+
+    <!-- ===================== БЛОК ИТОГОВ (КАРТОЧКА) ===================== -->
+    <div class="calc-block">
+        <!-- Блок "Начислено" -->
+        <div class="calc-item">
+            <span class="label">Начислено</span>
+            <div class="value">+ 24 800,00 ₽</div>
+        </div>
+
+        <!-- Блок "Удержано" -->
+        <div class="calc-item">
+            <span class="label">Удержано</span>
+            <div class="value">- 300,00 ₽</div>
+        </div>
+
+        <!-- Блок "Авансы" -->
+        <div class="calc-item">
+            <span class="label">Авансы</span>
+            <div class="value">- 11 000,00 ₽</div>
+        </div>
+
+        <!-- Блок "К ВЫПЛАТЕ" (основная цифра) -->
+        <div class="calc-item">
+            <span class="label">К ВЫПЛАТЕ</span>
+            <!-- класс val-total отвечает за размер и подчёркивание -->
+            <div class="value val-total">13 500,00 ₽</div>
+        </div>
+    </div>
+
+    <!-- ===================== ОСНОВНАЯ ДВУХКОЛОНОЧНАЯ СЕТКА ===================== -->
+    <div class="layout-grid">
+
+        <!-- Левая панель: детализированные смены -->
+        <div class="left-panel">
+            <h3>1. Детализация смен</h3>
+            <table>
+                <thead>
+                <tr>
+                    <th width="20%">Дата</th>
+                    <th width="45%">Время работы</th>
+                    <th width="35%" class="col-money">Сумма</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- Здесь идут строки смен, можно генерировать их из шаблона/сервера -->
+                <tr>
+                    <td>18.12 Чт</td>
+                    <td>17:00 - 22:00</td>
+                    <td class="col-money">1 100,00</td>
+                </tr>
+                <tr>
+                    <td>19.12 Пт</td>
+                    <td>11:09 - 23:30</td>
+                    <td class="col-money">2 717,00</td>
+                </tr>
+                <tr>
+                    <td>20.12 Сб</td>
+                    <td>11:20 - 22:10</td>
+                    <td class="col-money">2 383,33</td>
+                </tr>
+                <tr>
+                    <td>21.12 Вс</td>
+                    <td>12:03 - 22:00</td>
+                    <td class="col-money">2 189,00</td>
+                </tr>
+                <tr>
+                    <td>24.12 Ср</td>
+                    <td>12:00 - 21:30</td>
+                    <td class="col-money">2 090,00</td>
+                </tr>
+                <tr>
+                    <td>25.12 Чт</td>
+                    <td>12:24 - 21:35</td>
+                    <td class="col-money">2 020,33</td>
+                </tr>
+                <tr>
+                    <td>27.12 Сб</td>
+                    <td>14:55 - 21:38</td>
+                    <td class="col-money">1 477,67</td>
+                </tr>
+                <tr>
+                    <td>28.12 Вс</td>
+                    <td>11:35 - 22:10</td>
+                    <td class="col-money">2 328,33</td>
+                </tr>
+                <tr>
+                    <td>29.12 Пн</td>
+                    <td>11:45 - 23:00</td>
+                    <td class="col-money">2 475,00</td>
+                </tr>
+                <tr>
+                    <td>30.12 Вт</td>
+                    <td>11:37 - 05:40</td>
+                    <td class="col-money">3 971,00</td>
+                </tr>
+                <tr>
+                    <td>31.12 Ср</td>
+                    <td>11:00 - 20:00</td>
+                    <td class="col-money">2 048,34</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="font-style: italic; color: #444;">
+                        Дополнительные бонусы
+                    </td>
+                    <td class="col-money">68,34</td>
+                </tr>
+                <tr class="row-total">
+                    <td colspan="2">ВСЕГО НАЧИСЛЕНО</td>
+                    <td class="col-money">24 800,00</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Правая панель: авансы и удержания -->
+        <div class="right-panel">
+
+            <!-- Блок: история авансов -->
+            <div class="sub-block">
+                <h3>2. История авансов</h3>
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="30%">Дата</th>
+                        <th width="70%" class="col-money">Сумма</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>27.12</td>
+                        <td class="col-money">- 3 000,00</td>
+                    </tr>
+                    <tr>
+                        <td>30.12</td>
+                        <td class="col-money">- 8 000,00</td>
+                    </tr>
+                    <tr class="row-total">
+                        <td>Итого</td>
+                        <td class="col-money">- 11 000,00</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Блок: удержания -->
+            <div class="sub-block">
+                <h3>3. Удержания</h3>
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="30%">Дата</th>
+                        <th width="70%" class="col-money">Сумма</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>17.12</td>
+                        <td class="col-money">- 300,00</td>
+                    </tr>
+                    <tr class="row-total">
+                        <td>Итого</td>
+                        <td class="col-money">- 300,00</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

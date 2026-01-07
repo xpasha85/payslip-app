@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Расчетные листы</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=997">
+
+    <style>
+        /* ... ТВОИ СТИЛИ ПЕЧАТИ БЕЗ ИЗМЕНЕНИЙ ... */
+        @page { size: A4; margin: 0; }
+        body { font-family: "Inter", "Roboto", system-ui, sans-serif; background: #dcdcdc; margin: 0; padding: 24px; color: #111; }
+        .page-break { page-break-after: always; }
+        .sheet { background: #fff; width: 210mm; min-height: 297mm; margin: 0 auto 20px; padding: 18mm 18mm 16mm; box-sizing: border-box; box-shadow: 0 4px 18px rgba(0,0,0,0.18); border-radius: 4px; position: relative; }
+        
+        .header { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.06em; }
+        .header .period { font-size: 13px; font-weight: 600; color: #333; text-align: right; }
+
+        .calc-block { display: flex; justify-content: space-between; gap: 20px; background: #f3f4f6; border-radius: 8px; border: 1px solid #d0d2d7; padding: 14px 18px; margin-bottom: 30px; }
+        .calc-item { text-align: center; min-width: 90px; }
+        .calc-item .label { font-size: 10px; text-transform: uppercase; font-weight: 600; color: #6b7280; margin-bottom: 6px; display: block; letter-spacing: 0.08em; }
+        .calc-item .value { font-size: 16px; font-weight: 700; color: #111827; font-family: "JetBrains Mono", "Consolas", monospace; }
+        .val-total { font-size: 20px; font-weight: 900; border-bottom: 3px solid #111827; padding-bottom: 2px; line-height: 1.15; }
+
+        .layout-grid { display: flex; gap: 32px; align-items: flex-start; }
+        .left-panel { flex: 6; }
+        .right-panel { flex: 4; display: flex; flex-direction: column; gap: 24px; }
+
+        h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; margin: 0; background: #e5e7eb; padding: 8px 10px; border-radius: 4px 4px 0 0; border-bottom: 2px solid #111827; letter-spacing: 0.08em; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11.5px; line-height: 1.35; }
+        thead tr { background: #f9fafb; }
+        th { text-align: left; border-bottom: 1px solid #d1d5db; padding: 8px 10px; font-size: 9px; text-transform: uppercase; font-weight: 700; color: #6b7280; letter-spacing: 0.08em; }
+        td { border-bottom: 1px solid #e5e7eb; padding: 6px 10px; vertical-align: top; }
+        tr:nth-child(even) td { background: #f9fafb; }
+        
+        .col-money { text-align: right; font-family: "JetBrains Mono", "Consolas", monospace; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .row-total td { border-top: 2px solid #111827; border-bottom: none; font-weight: 800; background: #fff !important; padding-top: 10px; }
+
+        .fold-mark { position: absolute; width: 6mm; border-top: 0.3mm solid #999; left: 50%; transform: translateX(-50%); opacity: 0.7; }
+        .fold-mark--top { top: 33.33%; }
+        .fold-mark--middle { top: 66.66%; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .sheet { box-shadow: none; margin: 0; width: 100%; padding: 12mm; border-radius: 0; }
+            .page-break { page-break-after: always; }
+            .calc-block, h3, thead tr, tr:nth-child(even) td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+{% for emp in employees %}
+<div class="sheet page-break">
+    <div class="fold-mark fold-mark--top"></div>
+    <!-- 
+    <div class="fold-mark fold-mark--middle"></div>
+    -->
+
+    <div class="header">
+        <div><h1>{{ emp.name }}</h1></div>
+        <div class="period">Период: {{ emp.period }}</div>
+    </div>
+
+    <div class="calc-block">
+        <div class="calc-item">
+            <span class="label">Начислено</span>
+            <div class="value">+ {{ emp.total_accrued | rub }} ₽</div>
+        </div>
+        <div class="calc-item">
+            <span class="label">Удержано</span>
+            <div class="value">- {{ (emp.deductions | map(attribute='amount') | sum | abs) | rub }} ₽</div>
+        </div>
+        <div class="calc-item">
+            <span class="label">Авансы</span>
+            <div class="value">- {{ (emp.advances | map(attribute='amount') | sum | abs) | rub }} ₽</div>
+        </div>
+        <div class="calc-item">
+            <span class="label">К ВЫПЛАТЕ</span>
+            <div class="value val-total">{{ emp.calc_payout | rub }} ₽</div>
+        </div>
+    </div>
+
+    <div class="layout-grid">
+        <div class="left-panel">
+            <h3>1. Детализация смен</h3>
+            <table>
+                <thead>
+                <tr>
+                    <th width="20%">Дата</th>
+                    <th width="45%">Время работы</th>
+                    <th width="35%" class="col-money">Сумма</th>
+                </tr>
+                </thead>
+                <tbody>
+                    {% for shift in emp.shifts %}
+                    <tr>
+                        <td>{{ shift.date }}</td>
+                        <td>{{ shift.time }}</td>
+                        <td class="col-money">{{ shift.earnings | rub }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% for b in emp.bonuses %}
+                    <tr>
+                        <td colspan="2" style="font-style: italic; color: #444; text-align: left; padding-left: 10px;">
+                            Дополнительные бонусы
+                        </td>
+                        <td class="col-money">{{ b.amount | rub }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="row-total">
+                        <td colspan="2">ВСЕГО НАЧИСЛЕНО</td>
+                        <td class="col-money">{{ emp.total_accrued | rub }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="right-panel">
+            {% if emp.advances %}
+            <div class="sub-block">
+                <h3>2. История авансов</h3>
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="30%">Дата</th>
+                        <th width="70%" class="col-money">Сумма</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in emp.advances %}
+                    <tr>
+                        <td>{{ item.date }}</td>
+                        <td class="col-money">{{ item.amount | rub }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="row-total">
+                        <td>Итого</td>
+                        <td class="col-money">{{ (emp.advances | map(attribute='amount') | sum) | rub }}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if emp.deductions %}
+            <div class="sub-block">
+                <h3>3. Удержания</h3>
+                <table>
+                    <thead>
+                    <tr>
+                        <th width="30%">Дата</th>
+                        <th width="70%" class="col-money">Сумма</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in emp.deductions %}
+                    <tr>
+                        <td>{{ item.date }}</td>
+                        <td class="col-money">{{ item.amount | rub }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="row-total">
+                        <td>Итого</td>
+                        <td class="col-money">{{ (emp.deductions | map(attribute='amount') | sum) | rub }}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if not emp.advances and not emp.deductions %}
+            <div style="padding: 20px; color: #888; text-align: center; border: 1px dashed #ccc; border-radius: 4px;">
+                Нет дополнительных операций
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+</body>
+</html>
