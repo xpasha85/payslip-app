@@ -102,6 +102,15 @@
                     </tr>
                     {% endfor %}
 
+                    <tr style="background-color: #f8f9fa; border-top: 1px solid #999;">
+                        <td colspan="2" style="text-align: right; font-weight: 600; color: #444; font-style: italic; padding-right: 15px;">
+                            Всего часов: {{ "%.2f"|format(emp.total_hours) }}
+                        </td>
+                        <td class="col-money" style="font-style: italic;">
+                            {{ emp.total_shift_pay | rub }}
+                        </td>
+                    </tr>
+
                     {% for b in emp.bonuses %}
                     <tr>
                         <td colspan="2" style="font-style: italic; color: #444; text-align: left; padding-left: 10px;">
